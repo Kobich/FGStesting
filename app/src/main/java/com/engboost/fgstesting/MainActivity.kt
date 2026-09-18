@@ -48,7 +48,7 @@ private fun FgsTestScreen() {
         ActivityResultContracts.RequestMultiplePermissions(),
     ) {
         pendingMode?.let { mode ->
-            if (hasPermissions(context, mode)) startMode(context, mode)
+            if (hasPermissions(context, mode.requiredPermissions)) startMode(context, mode)
         }
         pendingMode = null
     }
@@ -63,11 +63,12 @@ private fun FgsTestScreen() {
             Button(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = {
-                    if (hasPermissions(context, mode)) {
+                    val permissionsToRequest = mode.requiredPermissions + Manifest.permission.POST_NOTIFICATIONS
+                    if (hasPermissions(context, permissionsToRequest)) {
                         startMode(context, mode)
                     } else {
                         pendingMode = mode
-                        permissionLauncher.launch(mode.requiredPermissions.toTypedArray())
+                        permissionLauncher.launch(permissionsToRequest.toTypedArray())
                     }
                 },
             ) {
@@ -81,15 +82,15 @@ private fun FgsTestScreen() {
             Text("Остановить активный тест")
         }
         Text(
-            "Разрешения: Bluetooth — для двух scan-тестов; геолокация — для Location. " +
-                "Уведомления запрашиваются отдельно в настройках приложения.",
+            "При первом запуске запрашиваются уведомления. Bluetooth нужен для scan-тестов; " +
+                "геолокация — для Location.",
             style = MaterialTheme.typography.bodySmall,
         )
     }
 }
 
-private fun hasPermissions(context: Context, mode: FgsMode): Boolean =
-    mode.requiredPermissions.all { permission ->
+private fun hasPermissions(context: Context, permissions: List<String>): Boolean =
+    permissions.all { permission ->
         ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
     }
 
