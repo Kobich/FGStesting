@@ -68,6 +68,7 @@ abstract class BaseTestForegroundService : Service() {
             .setContentText(description)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setContentIntent(openApp)
             .build()
     }
@@ -134,21 +135,43 @@ class LocationTestService : BaseTestForegroundService(), LocationListener {
     override val notificationId = 1104
 
     private val locationManager by lazy { getSystemService(Context.LOCATION_SERVICE) as LocationManager }
+    private val providers = listOf(
+        LocationManager.GPS_PROVIDER,
+        LocationManager.NETWORK_PROVIDER,
+    )
 
     override fun onForegroundStarted() {
-        Log.i(LOG_TAG, "${javaClass.simpleName}: requesting GPS updates")
+        Log.i(LOG_TAG, "${javaClass.simpleName}: requesting GPS and network location updates")
         runCatching {
-            locationManager.requestLocationUpdates(
-                LocationManager.GPS_PROVIDER,
-                1_000L,
-                0f,
-                this,
-            )
+            providers.forEach { provider ->
+                val enabled = locationManager.isProviderEnabled(provider)
+                Log.i(LOG_TAG, "${javaClass.simpleName}: $provider enabled=$enabled")
+                locationManager.getLastKnownLocation(provider)?.let { location ->
+                    Log.i(
+                        LOG_TAG,
+                        "${javaClass.simpleName}: cached $provider=${location.latitude},${location.longitude}",
+                    )
+                } ?: Log.i(LOG_TAG, "${javaClass.simpleName}: no cached $provider location")
+                if (enabled) {
+                    locationManager.requestLocationUpdates(provider, 1_000L, 0f, this)
+                }
+            }
         }.onFailure { Log.e(title, "Unable to request location updates", it) }
     }
 
     override fun onLocationChanged(location: Location) {
-        Log.d(LOG_TAG, "${javaClass.simpleName}: location=${location.latitude},${location.longitude}")
+        Log.d(
+            LOG_TAG,
+            "${javaClass.simpleName}: ${location.provider}=${location.latitude},${location.longitude}",
+        )
+    }
+
+    override fun onProviderEnabled(provider: String) {
+        Log.i(LOG_TAG, "${javaClass.simpleName}: provider enabled=$provider")
+    }
+
+    override fun onProviderDisabled(provider: String) {
+        Log.w(LOG_TAG, "${javaClass.simpleName}: provider disabled=$provider")
     }
 
     override fun onDestroy() {
