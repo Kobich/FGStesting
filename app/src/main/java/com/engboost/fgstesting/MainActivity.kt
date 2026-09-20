@@ -57,7 +57,7 @@ private fun FgsTestScreen() {
         modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("FGS testing — target SDK 36", style = MaterialTheme.typography.headlineSmall)
+        Text("FGS testing — target SDK 36.", style = MaterialTheme.typography.headlineSmall)
         Text("Каждая кнопка останавливает предыдущий тестовый FGS и запускает выбранный.")
         FgsMode.entries.forEach { mode ->
             Button(
