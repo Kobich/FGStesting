@@ -44,6 +44,8 @@ class MainActivity : ComponentActivity() {
 private fun FgsTestScreen() {
     val context = androidx.compose.ui.platform.LocalContext.current
     var pendingMode by rememberSaveable { mutableStateOf<FgsMode?>(null) }
+    var uidtStatus by rememberSaveable { mutableStateOf("UIDT tests are stopped") }
+    var pendingUidtTest by rememberSaveable { mutableStateOf<UidtStressTest?>(null) }
     val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) {
@@ -51,6 +53,14 @@ private fun FgsTestScreen() {
             if (hasPermissions(context, mode.requiredPermissions)) startMode(context, mode)
         }
         pendingMode = null
+        pendingUidtTest?.let { test ->
+            uidtStatus = if (hasPermissions(context, listOf(Manifest.permission.POST_NOTIFICATIONS))) {
+                scheduleUidtTest(context, test)
+            } else {
+                "UIDT start cancelled: notification permission is required for this test"
+            }
+        }
+        pendingUidtTest = null
     }
 
     Column(
@@ -86,8 +96,64 @@ private fun FgsTestScreen() {
                 "геолокация — для Location.",
             style = MaterialTheme.typography.bodySmall,
         )
+        Text("UIDT stress tests", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Намеренно некорректный эксперимент: две UIDT job имитируют передачу и " +
+                "мониторинг времени, чтобы зафиксировать остановку системой.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = {
+                if (hasPermissions(context, listOf(Manifest.permission.POST_NOTIFICATIONS))) {
+                    uidtStatus = scheduleUidtTest(context, UidtStressTest.TRANSFER)
+                } else {
+                    pendingUidtTest = UidtStressTest.TRANSFER
+                    permissionLauncher.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS))
+                }
+            },
+        ) {
+            Text("UIDT: start mock upload/download")
+        }
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = {
+                if (hasPermissions(context, listOf(Manifest.permission.POST_NOTIFICATIONS))) {
+                    uidtStatus = scheduleUidtTest(context, UidtStressTest.TIME_MONITOR)
+                } else {
+                    pendingUidtTest = UidtStressTest.TIME_MONITOR
+                    permissionLauncher.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS))
+                }
+            },
+        ) {
+            Text("UIDT: start time monitor")
+        }
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = {
+                UidtStressJobScheduler.stopAll(context)
+                uidtStatus = "UIDT tests cancelled from UI"
+            },
+        ) {
+            Text("UIDT: stop both tests")
+        }
+        Text(uidtStatus, style = MaterialTheme.typography.bodySmall)
     }
 }
+
+private enum class UidtStressTest {
+    TRANSFER,
+    TIME_MONITOR,
+}
+
+private fun scheduleUidtTest(context: Context, test: UidtStressTest): String = runCatching {
+    when (test) {
+        UidtStressTest.TRANSFER ->
+            "Mock transfer schedule=${UidtStressJobScheduler.startTransfer(context)}"
+        UidtStressTest.TIME_MONITOR ->
+            "Time monitor schedule=${UidtStressJobScheduler.startTimeMonitor(context)}"
+    }
+}.getOrElse { error -> "UIDT error=${error.javaClass.simpleName}" }
 
 private fun hasPermissions(context: Context, permissions: List<String>): Boolean =
     permissions.all { permission ->
