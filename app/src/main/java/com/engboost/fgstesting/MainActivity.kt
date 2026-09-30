@@ -45,7 +45,6 @@ private fun FgsTestScreen() {
     val context = androidx.compose.ui.platform.LocalContext.current
     var pendingMode by rememberSaveable { mutableStateOf<FgsMode?>(null) }
     var uidtStatus by rememberSaveable { mutableStateOf("UIDT tests are stopped") }
-    var pendingUidtTest by rememberSaveable { mutableStateOf<UidtStressTest?>(null) }
     val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) {
@@ -53,14 +52,6 @@ private fun FgsTestScreen() {
             if (hasPermissions(context, mode.requiredPermissions)) startMode(context, mode)
         }
         pendingMode = null
-        pendingUidtTest?.let { test ->
-            uidtStatus = if (hasPermissions(context, listOf(Manifest.permission.POST_NOTIFICATIONS))) {
-                scheduleUidtTest(context, test)
-            } else {
-                "UIDT start cancelled: notification permission is required for this test"
-            }
-        }
-        pendingUidtTest = null
     }
 
     Column(
@@ -105,12 +96,10 @@ private fun FgsTestScreen() {
         Button(
             modifier = Modifier.fillMaxWidth(),
             onClick = {
-                if (hasPermissions(context, listOf(Manifest.permission.POST_NOTIFICATIONS))) {
-                    uidtStatus = scheduleUidtTest(context, UidtStressTest.TRANSFER)
-                } else {
-                    pendingUidtTest = UidtStressTest.TRANSFER
+                if (!hasPermissions(context, listOf(Manifest.permission.POST_NOTIFICATIONS))) {
                     permissionLauncher.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS))
                 }
+                uidtStatus = scheduleUidtTest(context, UidtStressTest.TRANSFER)
             },
         ) {
             Text("UIDT: start mock upload/download")
@@ -118,12 +107,10 @@ private fun FgsTestScreen() {
         Button(
             modifier = Modifier.fillMaxWidth(),
             onClick = {
-                if (hasPermissions(context, listOf(Manifest.permission.POST_NOTIFICATIONS))) {
-                    uidtStatus = scheduleUidtTest(context, UidtStressTest.TIME_MONITOR)
-                } else {
-                    pendingUidtTest = UidtStressTest.TIME_MONITOR
+                if (!hasPermissions(context, listOf(Manifest.permission.POST_NOTIFICATIONS))) {
                     permissionLauncher.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS))
                 }
+                uidtStatus = scheduleUidtTest(context, UidtStressTest.TIME_MONITOR)
             },
         ) {
             Text("UIDT: start time monitor")

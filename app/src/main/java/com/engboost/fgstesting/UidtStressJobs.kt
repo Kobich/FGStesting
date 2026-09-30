@@ -11,8 +11,6 @@ import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.net.NetworkCapabilities
-import android.net.NetworkRequest
 import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -70,12 +68,12 @@ object UidtStressJobScheduler {
         check(scheduler.canRunUserInitiatedJobs()) {
             "RUN_USER_INITIATED_JOBS is unavailable for this app"
         }
-        val networkRequest = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .build()
         val jobInfo = JobInfo.Builder(jobId, ComponentName(context, jobClass))
             .setUserInitiated(true)
-            .setRequiredNetwork(networkRequest)
+            // UIDT requires a network constraint. NETWORK_TYPE_ANY is deliberately used for
+            // this stress test so Wi-Fi, cellular, and an unvalidated local connection all
+            // satisfy the prerequisite and do not mask the scheduler experiment.
+            .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
             // A large estimate prevents a tiny artificial test payload from being interpreted
             // as a job that should finish immediately.
             .setEstimatedNetworkBytes(ONE_GIB, ONE_GIB)
